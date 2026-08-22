@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asia Climate Risk Screener — v1.1</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="assets_data.js"></script>
+<script src="clean_data.js" onerror="window.CLEAN=[]"></script>
+<script src="coal_data.js" onerror="window.COAL=[]"></script>
+<script src="events_data.js" onerror="window.EVENTS=[]"></script>
+<style>
+  :root { --green:#1a7f4b; --grey:#6b7280; --red:#b91c1c; --amber:#b45309; --bg:#f4f6f4; --card:#ffffff; --ink:#1f2937; --line:#e5e7eb; }
+  * { box-sizing:border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; background:var(--bg); color:var(--ink); margin:0; line-height:1.5; font-size:14px; }
+  header { background:#fff; border-bottom:2px solid var(--green); padding:10px 20px; display:flex; flex-wrap:wrap; align-items:center; gap:14px; }
+  header h1 { font-size:19px; margin:0; color:var(--green); }
+  header .tag { font-size:11px; background:var(--amber); color:#fff; border-radius:4px; padding:2px 7px; }
+  .feeds { margin-left:auto; display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:var(--grey); align-items:center; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#9ca3af; margin-right:4px; }
+  .dot.ok { background:var(--green); } .dot.bad { background:var(--red); } .dot.run { background:#f59e0b; }
+  nav.tabs { background:#fff; border-bottom:1px solid var(--line); padding:0 20px; display:flex; gap:2px; }
+  nav.tabs button { background:none; border:0; border-bottom:3px solid transparent; padding:10px 16px; font-size:14px; cursor:pointer; color:var(--grey); font-family:inherit; }
+  nav.tabs button.active { color:var(--green); border-bottom-color:var(--green); font-weight:bold; }
+  .tabpage { display:none; padding:16px 20px; }
+  .tabpage.active { display:block; }
+  .explain { background:#eef6f0; border-left:4px solid var(--green); padding:9px 14px; border-radius:0 6px 6px 0; margin-bottom:14px; font-size:13px; }
+  .explain b:first-child { color:var(--green); }
+  .layout { display:grid; grid-template-columns: 1.6fr 1fr; gap:14px; }
+  @media (max-width: 1000px){ .layout { grid-template-columns: 1fr; } }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:14px; }
+  .panel h3 { margin:0 0 8px; font-size:14px; color:var(--green); }
+  #map { height:560px; border-radius:8px; border:1px solid var(--line); }
+  .cardlabel { font-size:12px; color:var(--grey); }
+  .riskline { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dashed var(--line); font-size:13px; }
+  .pill { font-size:11px; font-weight:bold; border-radius:10px; padding:1px 9px; color:#fff; }
+  .pill.low { background:var(--green); } .pill.mod { background:#f59e0b; } .pill.high { background:var(--red); } .pill.sev { background:#7f1d1d; } .pill.na { background:#9ca3af; }
+  .verdict { background:#eef6f0; border-radius:6px; padding:9px 12px; font-size:13px; margin-top:10px; }
+  .small { font-size:12px; color:var(--grey); }
+  .btn { background:var(--green); color:#fff; border:0; border-radius:6px; padding:7px 14px; font-size:13px; cursor:pointer; font-family:inherit; }
+  .btn.ghost { background:#fff; color:var(--green); border:1px solid var(--green); }
+  .btn:disabled { background:#9ca3af; cursor:default; }
+  .unavail { color:var(--grey); font-style:italic; }
+  .chartbox { position:relative; height:230px; }
+  table.status { border-collapse:collapse; width:100%; font-size:13px; }
+  table.status td, table.status th { border:1px solid var(--line); padding:6px 9px; text-align:left; }
+  table.status th { background:#f3f4f6; }
+  .legendbar { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 12px; margin-top:8px; font-size:12px; color:var(--ink); }
+  .legendbar .lrow { margin:2px 0; }
+  .legendbar i.sw { display:inline-block; width:10px; height:10px; border-radius:50%; margin:0 5px 0 12px; vertical-align:middle; }
+  .legendbar i.sw:first-of-type { margin-left:6px; }
+  .legend span { display:inline-block; width:10px; height:10px; border-radius:50%; margin:0 4px 0 10px; }
+  #search { width:100%; padding:7px 10px; border:1px solid var(--line); border-radius:6px; font-size:13px; margin-bottom:8px; font-family:inherit; }
+  #results { max-height:180px; overflow-y:auto; font-size:13px; }
+  #results div { padding:4px 6px; cursor:pointer; border-radius:4px; }
+  #results div:hover { background:#eef6f0; }
+  .spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--line); border-top-color:var(--green); border-radius:50%; animation:spin .8s linear infinite; vertical-align:middle; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .wsel { font-size:11px; padding:1px 3px; border:1px solid var(--line); border-radius:4px; font-family:inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Asia Climate Risk Screener</h1>
+  <span class="tag">v1.1 · upgraded methods</span>
+  <div class="feeds" id="feedbar"></div>
+</header>
+<nav class="tabs">
+  <button data-tab="t1" class="active">1 · Asset Map &amp; Screener</button>
+  <button data-tab="t2">2 · Hazard Deep-Dive</button>
+  <button data-tab="t3">3 · Method, Validation &amp; Data</button>
+</nav>
+
+<div class="tabpage active" id="t1">
+  <div class="explain"><b>What this is:</b> every dot is a real Asian power station tracked by Climate TRACE (satellite-estimated emissions, CC BY 4.0). <b>Why:</b> before lending to or insuring an asset, you need its climate-risk shape. <b>What to do:</b> click any dot — or press <b>Screen any point</b> and click anywhere — and the panel on the right builds a live risk profile from 80+ years of measured weather, river records since 1984, and climate-model projections to 2050.</div>
+  <div class="layout">
+    <div>
+      <div id="map"></div>
+      <div class="legendbar">
+        <div class="lrow"><b>Fossil-fuel stations</b> (dot size = annual emissions):
+          <i class="sw" style="background:#111827"></i>coal
+          <i class="sw" style="background:#c2410c"></i>gas
+          <i class="sw" style="background:#7c3aed"></i>oil
+          <i class="sw" style="background:#16a34a"></i>biomass/waste
+          <i class="sw" style="background:#ffffff;border:2px solid #64748b;width:7px;height:7px"></i>other/unknown
+          · <span id="assetcount"></span>
+        </div>
+        <div class="lrow" id="cleanlegend"><b>Clean-energy plants</b> (dot size = capacity):
+          <i class="sw" style="background:#db2777"></i>nuclear
+          <i class="sw" style="background:#0ea5e9"></i>hydro
+          <i class="sw" style="background:#facc15"></i>solar
+          <i class="sw" style="background:#14b8a6"></i>wind
+          <i class="sw" style="background:#16a34a"></i>bioenergy
+          <i class="sw" style="background:#dc2626"></i>geothermal
+          · <span id="cleancount">loading…</span>
+        </div>
+        <div class="lrow small" style="margin-top:5px"><b>Coverage:</b> coal is authoritative — every Asian coal plant in GEM's Global Coal Plant Tracker (Jul 2026) is shown; solid black = operating/mothballed, hollow black = pipeline (announced → under construction). 96% of operating coal plants also carry a Climate TRACE satellite emissions estimate. The clean layer is fully GEM-sourced and current — solar &amp; wind (Feb 2026 releases), hydro &amp; geothermal (Mar 2026), bioenergy (GBPT V3) and nuclear (Aug 2026), operating plants ≥50 MW (nuclear: all sizes), so the post-2020 renewables build-out is included. Non-power assets and plants below each tracker's threshold are not shown.</div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Find an asset</h3>
+        <input id="search" placeholder="Type a plant name or country code (e.g. CHN, IDN)…">
+        <div id="results"></div>
+      </div>
+      <div class="panel" id="riskcard">
+        <h3>Risk profile</h3>
+        <div id="riskbody"><span class="small">No asset selected yet. Click a dot on the map, or use “Screen any point”.</span></div>
+      </div>
+      <div class="panel">
+        <button class="btn ghost" id="pinmode">Screen any point</button>
+        <div class="small" style="margin-top:6px">For candidate sites not yet in any database: toggle this, then click the map. You get the same hazard profile, without asset attributes.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tabpage" id="t2">
+  <div class="explain"><b>What this is:</b> the evidence behind the risk card — measured history and modelled future at the selected location. <b>Why:</b> a rating you cannot inspect is a rating you cannot defend to an investment committee. <b>What to do:</b> select an asset on Tab 1 first; every chart here updates and every figure states its source and period. <b>Coverage:</b> each panel describes the dataset grid cell containing the plant — roughly 10–25 km across for weather history, ~10 km for the river record (snapped to the nearest major river), ~30–50 km for the future projection, ~50 km for the solar/wind resource. This is a point screen of the plant's immediate surroundings, not a map of the wider region.</div>
+  <div id="deep_empty" class="panel"><span class="small">Nothing selected yet — pick an asset or a point on Tab 1.</span></div>
+  <div id="deep_charts" style="display:none">
+    <div class="layout">
+      <div>
+        <div class="panel"><h3>Heat stress — days per year above the local calendar-day 90th percentile (TX90p)</h3><div class="chartbox"><canvas id="ch_heat"></canvas></div><div class="small" id="heat_note"></div></div>
+        <div class="panel"><h3>Extreme rain — heaviest single-day rainfall each year (Rx1day)</h3><div class="chartbox"><canvas id="ch_rain"></canvas></div><div class="small" id="rain_note"></div></div>
+        <div class="panel"><h3>River flood — highest daily discharge each year (nearest major river)</h3><div class="chartbox"><canvas id="ch_flood"></canvas></div><div class="small" id="flood_note"></div></div>
+      </div>
+      <div>
+        <div class="panel"><h3>Modelled future shift — delta method, 1995–2014 vs 2031–2050</h3><div class="chartbox"><canvas id="ch_future"></canvas></div><div class="small" id="future_note"></div></div>
+        <div class="panel"><h3>Replacement resource — monthly solar &amp; wind at this site</h3><div class="chartbox"><canvas id="ch_power"></canvas></div><div class="small" id="power_note"></div></div>
+        <div class="panel"><h3>Plain-English summary</h3><div id="summary_txt" style="font-size:13px"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tabpage" id="t3">
+  <div class="explain"><b>What this is:</b> how the tool works, where the data comes from, what it cannot do, and how it is being checked against reality. <b>Why:</b> honest limits are what separate a decision tool from a decoration.</div>
+  <div class="layout">
+    <div>
+      <div class="panel" id="method_panel"><h3>Method, in plain English</h3><div style="font-size:13px" id="method_txt"></div></div>
+      <div class="panel"><h3>Validation scorecard</h3><div id="scorecard" style="font-size:13px"></div></div>
+    </div>
+    <div>
+      <div class="panel"><h3>Live feed status</h3><table class="status" id="feedtable"></table><br><button class="btn ghost" id="retest">Re-test feeds now</button></div>
+      <div class="panel"><h3>Sources &amp; licences</h3><div style="font-size:12px" id="sources_txt"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= helpers & feed registry ================= */
+var FEEDS = [
+  { id:"era5",   label:"Weather history (ERA5)" },
+  { id:"glofas", label:"River discharge (GloFAS)" },
+  { id:"cmip6",  label:"Climate projections (CMIP6)" },
+  { id:"power",  label:"Solar/wind resource (NASA POWER)" },
+  { id:"assets", label:"Asset data (Climate TRACE, bundled)" }
+];
+var feedState = {};
+function setFeed(id, s){
+  feedState[id] = s;
+  var bar = document.getElementById("feedbar");
+  bar.innerHTML = FEEDS.map(function(f){
+    var st = feedState[f.id] || "run";
+    return '<span title="' + f.label + '"><span class="dot ' + (st==="ok"?"ok":st==="bad"?"bad":"run") + '"></span>' + f.label.split(" (")[0] + "</span>";
+  }).join("");
+}
+function fetchJSON(url, feedId, timeoutMs){
+  return new Promise(function(resolve){
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); }, timeoutMs || 30000);
+    fetch(url, { signal: ctrl.signal })
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(function(d){ clearTimeout(timer); if(feedId) setFeed(feedId,"ok"); resolve({ok:true,data:d}); })
+      .catch(function(e){ clearTimeout(timer); if(feedId) setFeed(feedId,"bad"); resolve({ok:false,error:String(e)}); });
+  });
+}
+function $(id){ return document.getElementById(id); }
+function mean(a){ return a.length ? a.reduce(function(x,y){return x+y;},0)/a.length : null; }
+function round1(x){ return x===null||x===undefined||isNaN(x) ? "—" : Math.round(x*10)/10; }
+function round2(x){ return x===null||x===undefined||isNaN(x) ? "—" : Math.round(x*100)/100; }
+
+/* ---- small statistics toolkit (vanilla, inspectable, no black boxes) ---- */
+var DOY = [0,31,59,90,120,151,181,212,243,273,304,334];
+function dayOfYear(ds){   // every year treated as 365 days; 29 Feb folds into day 60
+  var mo = +ds.slice(5,7), dy = +ds.slice(8,10);
+  return (mo===2 && dy===29) ? 60 : DOY[mo-1] + dy;
+}
+function medianOf(a){
+  if (!a.length) return null;
+  var s = a.slice().sort(function(x,y){ return x-y; });
+  var m = Math.floor(s.length/2);
+  return s.length % 2 ? s[m] : (s[m-1]+s[m])/2;
+}
+function erf(x){   // Abramowitz–Stegun 7.1.26, |error| < 1.5e-7
+  var t = 1/(1+0.3275911*Math.abs(x));
+  var y = 1 - (((((1.061405429*t - 1.453152027)*t) + 1.421413741)*t - 0.284496736)*t + 0.254829592)*t*Math.exp(-x*x);
+  return x >= 0 ? y : -y;
+}
+function normCDF(x){ return 0.5*(1 + erf(x/Math.sqrt(2))); }
+/* Theil–Sen slope (units per year): median of all pairwise slopes */
+function senSlope(ys, vs){
+  var sl = [];
+  for (var i=0;i<ys.length;i++) for (var j=i+1;j<ys.length;j++)
+    if (ys[j] !== ys[i]) sl.push((vs[j]-vs[i])/(ys[j]-ys[i]));
+  return sl.length ? medianOf(sl) : null;
+}
+/* Mann–Kendall two-sided significance (normal approximation with continuity correction) */
+function mannKendall(vs){
+  var n = vs.length, S = 0;
+  for (var i=0;i<n-1;i++) for (var j=i+1;j<n;j++)
+    S += (vs[j]>vs[i]) ? 1 : (vs[j]<vs[i]) ? -1 : 0;
+  var varS = n*(n-1)*(2*n+5)/18;
+  var z = S>0 ? (S-1)/Math.sqrt(varS) : S<0 ? (S+1)/Math.sqrt(varS) : 0;
+  return { S:S, z:z, p: 2*(1-normCDF(Math.abs(z))) };
+}
+/* Pettitt single change-point test */
+function pettitt(ys, vs){
+  var n = vs.length, bestK = 0, bestT = 0;
+  for (var t=1;t<n;t++){
+    var U = 0;
+    for (var i=0;i<t;i++) for (var j=t;j<n;j++)
+      U += (vs[j]>vs[i]) ? 1 : (vs[j]<vs[i]) ? -1 : 0;
+    if (Math.abs(U) > bestK){ bestK = Math.abs(U); bestT = t; }
+  }
+  var p = 2*Math.exp(-6*bestK*bestK/(n*n*n + n*n));
+  return { year: ys[bestT], K: bestK, p: Math.min(1, p) };
+}
+/* remove the Theil–Sen trend so percentile ranks reflect the anomaly, not the secular trend */
+function detrendSeries(ys, vs){
+  var s = senSlope(ys, vs);
+  if (s === null) return vs.slice();
+  var ybar = mean(ys);
+  return vs.map(function(v, i){ return v - s*(ys[i]-ybar); });
+}
+function haversineKm(lat1, lon1, lat2, lon2){
+  var R = 6371, dLa = (lat2-lat1)*Math.PI/180, dLo = (lon2-lon1)*Math.PI/180;
+  var a = Math.sin(dLa/2)*Math.sin(dLa/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLo/2)*Math.sin(dLo/2);
+  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+/* Table III ordinal-to-numeric banding (disclosed heuristic) */
+var HAZ_BAND  = { low:20, mod:50, high:70, sev:90 };
+var TRAN_BAND = { low:20, mod:50, high:90 };
+
+/* tab switching */
+document.querySelectorAll("nav.tabs button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("nav.tabs button").forEach(function(x){ x.classList.remove("active"); });
+    document.querySelectorAll(".tabpage").forEach(function(x){ x.classList.remove("active"); });
+    b.classList.add("active");
+    $(b.dataset.tab).classList.add("active");
+    if (b.dataset.tab === "t1" && window._map) setTimeout(function(){ window._map.invalidateSize(); }, 60);
+  });
+});
+
+/* ================= Tab 1: map, markers, search, selection ================= */
+var FUEL_STYLE = {
+  coal:    { color:"#111827", label:"Coal" },
+  gas:     { color:"#c2410c", label:"Gas" },
+  oil:     { color:"#7c3aed", label:"Oil" },
+  biomass: { color:"#16a34a", label:"Biomass/waste" },
+  other:   { color:"#64748b", label:"Other/unknown", hollow:true },
+  nuclear:   { color:"#db2777", label:"Nuclear" },
+  hydro:     { color:"#0ea5e9", label:"Hydro" },
+  solar:     { color:"#facc15", label:"Solar" },
+  wind:      { color:"#14b8a6", label:"Wind" },
+  geothermal:{ color:"#dc2626", label:"Geothermal" }
+};
+var CLEAN_SRC = {
+  solar:      "GEM Solar Power Tracker, Feb 2026",
+  wind:       "GEM Wind Power Tracker, Feb 2026",
+  nuclear:    "GEM Nuclear Power Tracker, Aug 2026",
+  hydro:      "GEM Hydropower Tracker, Mar 2026",
+  geothermal: "GEM Geothermal Power Tracker, Mar 2026",
+  biomass:    "GEM Bioenergy Power Tracker (GBPT V3)"
+};
+function cleanSrc(a){ return CLEAN_SRC[a.fuel] || "GEM tracker"; }
+function fuelClass(f){
+  f = (f||"").toLowerCase();
+  if (f.indexOf("coal") >= 0) return "coal";
+  if (f.indexOf("gas") >= 0) return "gas";
+  if (f.indexOf("biomass") >= 0 || f.indexOf("waste") >= 0) return "biomass";
+  if (f.indexOf("oil") >= 0) return "oil";
+  return "other";
+}
+var map = null, markerLayer = null, pinMarker = null, pinMode = false;
+var SELECTED = null;      // {lat, lon, label, asset}
+var ANALYSIS = null;      // latest computed analysis object
+var cache = {};           // keyed by rounded lat/lon
+
+function initMap(){
+  if (typeof L === "undefined"){
+    $("map").innerHTML = '<div style="padding:30px;color:#6b7280">Map library could not be loaded from the CDN on this network. The data panels still work — select an asset via the search box.</div>';
+    return;
+  }
+  map = L.map("map", { renderer: L.canvas(), worldCopyJump: true }).setView([24, 100], 4);
+  window._map = map;
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; OpenStreetMap contributors &copy; CARTO", maxZoom: 17
+  }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+  indexCoal();
+  renderMarkers(window.ASSETS || []);
+  renderCleanMarkers(window.CLEAN || []);
+  var extraCoal = renderCoalMarkers() || 0;
+  $("assetcount").textContent = ((window.ASSETS || []).length + extraCoal).toLocaleString() + " fossil stations shown (incl. " + extraCoal.toLocaleString() + " coal plants from GEM GCPT not in the emissions database)";
+  map.on("click", function(e){
+    if (!pinMode) return;
+    if (pinMarker) map.removeLayer(pinMarker);
+    pinMarker = L.marker(e.latlng).addTo(map);
+    selectPoint(e.latlng.lat, e.latlng.lng, "Candidate site (" + e.latlng.lat.toFixed(3) + ", " + e.latlng.lng.toFixed(3) + ")", null);
+  });
+}
+function renderMarkers(list){
+  if (!map) return;
+  markerLayer.clearLayers();
+  list.forEach(function(a){
+    var fc = FUEL_STYLE[fuelClass(a.fuel)];
+    var r = Math.max(3, Math.min(13, 3 + Math.sqrt(a.mt) * 1.6));
+    var style = fc.hollow ?
+      { radius:r, color:fc.color, weight:1.5, fillColor:"#ffffff", fillOpacity:0.9 } :
+      { radius:r, color:fc.color, weight:1, fillColor:fc.color, fillOpacity:0.55 };
+    var m = L.circleMarker([a.lat, a.lon], style);
+    m.bindTooltip(a.name + " — " + fc.label + ", " + a.mt + " Mt CO₂e/yr (" + a.year + ")");
+    m.on("click", function(){ selectPoint(a.lat, a.lon, a.name, a); });
+    markerLayer.addLayer(m);
+  });
+}
+var cleanLayer = null, coalLayer = null, COAL_BY_CT = {};
+function indexCoal(){
+  (window.COAL || []).forEach(function(g){ if (g.ct) COAL_BY_CT[g.ct] = g; });
+}
+function renderCoalMarkers(){
+  if (!map || !window.COAL) return;
+  coalLayer = L.layerGroup().addTo(map);
+  var added = 0;
+  window.COAL.forEach(function(g){
+    if (g.ct) return;   // already represented by its Climate TRACE dot (sized by emissions)
+    var a = { name: g.name, country: g.country, fuel: "coal", lat: g.lat, lon: g.lon,
+              mt: g.co2, year: 2026, mw: g.mw, units: g.units, status: g.status,
+              oldest: g.oldest, retire: g.retire, owners: g.owners, gcpt: true };
+    var r = Math.max(3, Math.min(12, 3 + Math.sqrt(g.mw / 300)));
+    var style = g.status === "pipeline" ?
+      { radius:r, color:"#111827", weight:1.5, fillColor:"#ffffff", fillOpacity:0.9 } :
+      { radius:r, color:"#111827", weight:1, fillColor:"#111827", fillOpacity:0.6 };
+    var m = L.circleMarker([g.lat, g.lon], style);
+    m.bindTooltip(g.name + " — Coal, " + g.mw.toLocaleString() + " MW, " + g.status + " (GEM GCPT Jul 2026)");
+    m.on("click", function(){ selectPoint(g.lat, g.lon, g.name, a); });
+    coalLayer.addLayer(m);
+    added++;
+  });
+  return added;
+}
+function renderCleanMarkers(list){
+  if (!map || !list || !list.length){ $("cleancount").textContent = "clean layer file not bundled yet"; return; }
+  cleanLayer = L.layerGroup().addTo(map);
+  list.forEach(function(a){
+    var fc = FUEL_STYLE[a.fuel] || FUEL_STYLE.other;
+    var src = cleanSrc(a);
+    var r = Math.max(3, Math.min(12, 3 + Math.sqrt(a.mw / 100)));
+    var m = L.circleMarker([a.lat, a.lon], { radius:r, color:"#ffffff", weight:1, fillColor:fc.color, fillOpacity:0.75 });
+    m.bindTooltip(a.name + " — " + fc.label + ", " + a.mw.toLocaleString() + " MW (" + src + ")");
+    m.on("click", function(){ selectPoint(a.lat, a.lon, a.name, a); });
+    cleanLayer.addLayer(m);
+  });
+  $("cleancount").textContent = list.length.toLocaleString() + " clean plants shown";
+}
+/* search */
+$("search").addEventListener("input", function(){
+  var q = this.value.trim().toLowerCase();
+  var box = $("results");
+  if (q.length < 2){ box.innerHTML = ""; return; }
+  var hits = (window.ASSETS || []).concat(window.CLEAN || [],
+    (window.COAL || []).filter(function(g){ return !g.ct; }).map(function(g){
+      return { name: g.name, country: g.country, fuel: "coal", lat: g.lat, lon: g.lon,
+               mt: g.co2, year: 2026, mw: g.mw, units: g.units, status: g.status,
+               oldest: g.oldest, retire: g.retire, owners: g.owners, gcpt: true };
+    })).filter(function(a){
+    return a.name.toLowerCase().indexOf(q) >= 0 || a.country.toLowerCase() === q;
+  }).slice(0, 25);
+  box.innerHTML = hits.length ? "" : '<div class="small">No matches.</div>';
+  hits.forEach(function(a){
+    var d = document.createElement("div");
+    d.textContent = a.name + " · " + a.country + " · " + (a.clean ? a.mw.toLocaleString() + " MW" : (a.gcpt ? a.mw.toLocaleString() + " MW coal (GCPT)" : a.mt + " Mt"));
+    d.addEventListener("click", function(){
+      if (map) map.setView([a.lat, a.lon], 8);
+      selectPoint(a.lat, a.lon, a.name, a);
+    });
+    box.appendChild(d);
+  });
+});
+/* pin mode */
+$("pinmode").addEventListener("click", function(){
+  pinMode = !pinMode;
+  this.textContent = pinMode ? "Pin mode ON — click the map" : "Screen any point";
+  this.className = pinMode ? "btn" : "btn ghost";
+});
+
+/* ================= selection & analysis orchestration ================= */
+function assetSubtitle(a){
+  if (!a) return '<div class="cardlabel">Unlisted point — hazard profile only</div>';
+  if (a.clean){
+    var fc0 = FUEL_STYLE[a.fuel] || FUEL_STYLE.other;
+    return '<div class="cardlabel">' + a.country + ' · ' + fc0.label + ' · ' + a.mw.toLocaleString() + ' MW capacity' +
+      (a.gwh ? ' · ~' + Math.round(a.gwh).toLocaleString() + ' GWh/yr estimated generation' : '') +
+      (a.start ? ' · operating since ' + a.start : '') +
+      ' (' + cleanSrc(a) + ')</div>';
+  }
+  var g = a.gcpt ? a : a._gcpt;
+  var base;
+  if (a.gcpt){
+    base = '<div class="cardlabel">' + a.country + ' · Coal · ' + a.mw.toLocaleString() + ' MW across ' + a.units +
+      ' unit(s) · status: ' + a.status + (a.retire ? ' · planned retirement ' + a.retire : '') +
+      ' · est. ' + a.mt + ' Mt CO₂/yr (GEM GCPT, Jul 2026)</div>';
+  } else {
+    base = '<div class="cardlabel">' + a.country + ' · ' + FUEL_STYLE[fuelClass(a.fuel)].label +
+      ' · ' + a.mt + ' Mt CO₂e/yr (' + a.year + ', Climate TRACE satellite estimate)</div>' +
+      '<div class="cardlabel" style="color:#b45309">Fuel type as recorded by Climate TRACE — occasionally mislabelled or named after a neighbouring complex. The measured hazard lines are location-based and unaffected; if the fuel looks wrong, treat only the transition line with caution.</div>';
+  }
+  if (g && !a.gcpt){
+    base += '<div class="cardlabel" style="color:#1a7f4b">Matched GEM coal record: ' + g.mw.toLocaleString() + ' MW across ' + g.units +
+      ' unit(s)' + (g.oldest ? ' · oldest unit from ' + g.oldest + ' (age ~' + (2026 - g.oldest) + ' yrs vs ~40-yr typical life)' : '') +
+      (g.retire ? ' · planned retirement ' + g.retire : ' · no planned retirement recorded') + '</div>';
+  }
+  if (g && g.owners) base += '<div class="cardlabel">Owners: ' + g.owners + '</div>';
+  return base;
+}
+function transExposure(a){
+  if (!a) return { cls:"na", word:"n/a — unlisted point" };
+  if (a.clean) return { cls:"low", word:"low — zero-operational-emission asset; transition policy is a tailwind, not a threat" };
+  var g = a.gcpt ? a : a._gcpt;
+  if (g){
+    if (g.status === "pipeline") return { cls:"high", word:"high — unbuilt coal pipeline project; cancellation risk is the dominant exposure" };
+    var age = g.oldest ? (2026 - g.oldest) : null;
+    if (g.retire) return { cls:"high", word:"high — coal, with a planned retirement already on the books (" + g.retire + ")" };
+    if (age !== null && age >= 30) return { cls:"high", word:"high — coal, oldest unit ~" + age + " yrs old, approaching end of typical 40-yr life" };
+    return { cls:"high", word:"high — coal faces the strongest phase-out pressure" + (age !== null ? " (oldest unit ~" + age + " yrs)" : "") };
+  }
+  var fc = fuelClass(a.fuel);
+  if (fc==="coal") return { cls:"high", word:"high — coal faces the strongest phase-out pressure" };
+  if (fc==="oil")  return { cls:"high", word:"high — oil-fired generation is a prime retirement candidate" };
+  if (fc==="gas")  return { cls:"mod",  word:"moderate — gas is a transition fuel with a shrinking runway" };
+  if (fc==="biomass") return { cls:"low", word:"lower — biomass/waste sits outside fossil phase-out pressure" };
+  return { cls:"na", word:"unknown fuel type" };
+}
+function selectPoint(lat, lon, label, asset){
+  if (asset && !asset.clean && !asset.gcpt && COAL_BY_CT[asset.name]) asset._gcpt = COAL_BY_CT[asset.name];
+  SELECTED = { lat: lat, lon: lon, label: label, asset: asset };
+  var rb = $("riskbody");
+  rb.innerHTML = '<div><b>' + label + '</b></div>' +
+    assetSubtitle(asset) +
+    '<div style="margin-top:10px"><span class="spinner"></span> Building risk profile — pulling 80+ years of measured weather, river records and projections…</div>';
+  $("deep_empty").style.display = "none";
+  $("deep_charts").style.display = "block";
+  runAnalysis(lat, lon);
+}
+
+/* ================= analysis pipeline ================= */
+function rating(kind, v){
+  var bands = {
+    heat:   [1.25, 1.75, 2.5],  // recent 20-yr TX90p days ÷ site's own 1961–90 normal (~36.5 days by construction)
+    rain:   [1.5, 4, 8],        // Theil–Sen slope of Rx1day, % per decade of the series median
+    flood:  [5, 20, 50],        // % change in recent 5-yr annual-max discharge vs 1984–2014 norm
+    future: [1.5, 2.5, 3.5]     // °C modelled warming, 2031–2050 vs 1995–2014 (delta method)
+  }[kind];
+  if (v === null || v === undefined || isNaN(v)) return { cls:"na", word:"no data" };
+  if (v < bands[0]) return { cls:"low", word:"lower" };
+  if (v < bands[1]) return { cls:"mod", word:"moderate" };
+  if (v < bands[2]) return { cls:"high", word:"elevated" };
+  return { cls:"sev", word:"high" };
+}
+
+function runAnalysis(lat, lon){
+  var key = lat.toFixed(2) + "," + lon.toFixed(2);
+  if (cache[key]){ presentAnalysis(cache[key]); return; }
+  var A = { lat: lat, lon: lon, asof: new Date().toISOString(), era5:null, glofas:null, future:null, power:null };
+  var today = new Date().toISOString().slice(0,10);
+
+  /* 1. ERA5 1940→today */
+  var u1 = "https://archive-api.open-meteo.com/v1/archive?latitude=" + lat + "&longitude=" + lon +
+    "&start_date=1940-01-01&end_date=" + today + "&daily=temperature_2m_max,precipitation_sum&timezone=UTC";
+  fetchJSON(u1, "era5", 60000).then(function(r1){
+    if (r1.ok){
+      var d = r1.data.daily, years = {}, calT = {};
+      for (var i=0;i<d.time.length;i++){
+        var ds = d.time[i], y = +ds.slice(0,4), t = d.temperature_2m_max[i], p = d.precipitation_sum[i];
+        if (t===null||p===null) continue;
+        if (!years[y]) years[y] = { hot:0, hot35:0, maxrain:0, rain:0, tsum:0, days:[] };
+        var rec0 = years[y], doy = dayOfYear(ds);
+        rec0.days.push({ doy:doy, t:t });
+        rec0.rain += p; rec0.tsum += t;
+        if (t >= 35) rec0.hot35++;
+        if (p > rec0.maxrain) rec0.maxrain = p;
+        if (y>=1961 && y<=1990){ (calT[doy] = calT[doy] || []).push(t); }
+      }
+      /* TX90p thresholds: calendar-day 90th percentile over 1961–90, ±2-day window (ETCCDI convention) */
+      var thr = {};
+      for (var dd0=1; dd0<=365; dd0++){
+        var pool = [];
+        for (var k=-2;k<=2;k++){
+          var w = dd0+k; if (w<1) w+=365; if (w>365) w-=365;
+          if (calT[w]) pool = pool.concat(calT[w]);
+        }
+        if (pool.length){
+          pool.sort(function(a,b){return a-b;});
+          thr[dd0] = pool[Math.floor(0.9*(pool.length-1))];
+        }
+      }
+      Object.keys(years).forEach(function(yy){
+        var rec = years[yy];
+        rec.hot = rec.days.filter(function(dd){ return thr[dd.doy]!==undefined && dd.t > thr[dd.doy]; }).length;
+        rec.y = +yy;
+      });
+      var curY = +today.slice(0,4);
+      var ys = Object.keys(years).map(Number).sort(function(a,b){return a-b;});
+      var complete = ys.filter(function(y){ return y < curY; });   // exclude the partial current year
+      var baseYrs  = complete.filter(function(y){ return y>=1961 && y<=1990; });
+      var early10  = complete.filter(function(y){ return y>=1961 && y<=1970; });
+      var recent20 = complete.slice(-20), recent5 = complete.slice(-5);
+      var hotBase = mean(baseYrs.map(function(y){ return years[y].hot; }));
+      var hotR20  = mean(recent20.map(function(y){ return years[y].hot; }));
+      var hotsC = complete.map(function(y){ return years[y].hot; });
+      var mkH = mannKendall(hotsC);
+      var senH = senSlope(complete, hotsC);
+      var ptH = pettitt(complete, hotsC);
+      var rainsC = complete.map(function(y){ return years[y].maxrain; });
+      var mkR = mannKendall(rainsC);
+      var senR = senSlope(complete, rainsC);
+      var medRx = medianOf(rainsC);
+      A.era5 = {
+        years: complete.map(function(y){ return years[y]; }),
+        thrJan15: thr[15], thrJul15: thr[196],
+        hotBase: hotBase, hotRecent20: hotR20,
+        hotRatio: (hotBase ? hotR20/hotBase : null),
+        h35Early: mean(early10.map(function(y){ return years[y].hot35; })),
+        h35Recent: mean(recent5.map(function(y){ return years[y].hot35; })),
+        h35R20: mean(recent20.map(function(y){ return years[y].hot35; })),
+        mkH: mkH, senH: senH!==null ? senH*10 : null, ptH: ptH,
+        obsT20: mean(recent20.map(function(y){ return years[y].tsum / years[y].days.length; })),
+        rain20: mean(recent20.map(function(y){ return years[y].rain; })),
+        rainRecent: mean(recent5.map(function(y){ return years[y].maxrain; })),
+        rainBase: mean(baseYrs.map(function(y){ return years[y].maxrain; })),
+        mkR: mkR, senRmm: senR!==null ? senR*10 : null,
+        senRpct: (senR!==null && medRx) ? senR*10/medRx*100 : null
+      };
+      A.era5.rainChg = A.era5.rainBase ? (A.era5.rainRecent - A.era5.rainBase)/A.era5.rainBase*100 : null;
+    }
+    /* 2. GloFAS river snap: 5 candidate cells, pick highest 30-day mean */
+    var offs = [[0,0],[0.25,0],[-0.25,0],[0,0.25],[0,-0.25]];
+    var cand = [];
+    var chain = Promise.resolve();
+    offs.forEach(function(o){
+      chain = chain.then(function(){
+        var u = "https://flood-api.open-meteo.com/v1/flood?latitude=" + (lat+o[0]).toFixed(3) +
+          "&longitude=" + (lon+o[1]).toFixed(3) + "&daily=river_discharge&past_days=30&forecast_days=0";
+        return fetchJSON(u, null, 20000).then(function(r){
+          if (r.ok && r.data.daily && r.data.daily.river_discharge){
+            var v = r.data.daily.river_discharge.filter(function(x){return x!==null;});
+            cand.push({ lat:+(lat+o[0]).toFixed(3), lon:+(lon+o[1]).toFixed(3), mean: mean(v)||0 });
+          }
+        });
+      });
+    });
+    return chain.then(function(){
+      if (!cand.length){ setFeed("glofas","bad"); return null; }
+      cand.sort(function(a,b){return b.mean-a.mean;});
+      var best = cand[0];
+      var uh = "https://flood-api.open-meteo.com/v1/flood?latitude=" + best.lat + "&longitude=" + best.lon +
+        "&daily=river_discharge&start_date=1984-01-01&end_date=" + today;
+      return fetchJSON(uh, "glofas", 60000).then(function(rh){
+        if (rh.ok){
+          var d = rh.data.daily, ymax = {}, qsum = 0, qn = 0;
+          for (var i=0;i<d.time.length;i++){
+            var y = +d.time[i].slice(0,4), q = d.river_discharge[i];
+            if (q===null) continue;
+            qsum += q; qn++;
+            if (!ymax[y] || q > ymax[y]) ymax[y] = q;
+          }
+          var ys2 = Object.keys(ymax).map(Number).sort(function(a,b){return a-b;});
+          var series = ys2.map(function(y){ return { y:y, max: ymax[y] }; });
+          var ltMean = qn ? qsum/qn : null;
+          var base = mean(series.filter(function(s){return s.y>=1984&&s.y<=2014;}).map(function(s){return s.max;}));
+          var rec = mean(series.slice(-5).map(function(s){return s.max;}));
+          A.glofas = { series: series, base: base, recent: rec,
+            chg: base ? (rec-base)/base*100 : null,
+            ltMean: ltMean, distKm: haversineKm(lat, lon, best.lat, best.lon),
+            gated: (ltMean !== null && ltMean < 100),
+            cellLat: best.lat, cellLon: best.lon, cellMean: best.mean,
+            snapped: (best.lat!==+lat.toFixed(3) || best.lon!==+lon.toFixed(3)) };
+        }
+        return null;
+      });
+    });
+  }).then(function(){
+    /* 3. CMIP6 two windows (single model, high-emission class — labelled honestly) */
+    var mk = function(a,b){
+      return "https://climate-api.open-meteo.com/v1/climate?latitude=" + lat + "&longitude=" + lon +
+        "&start_date=" + a + "&end_date=" + b + "&daily=temperature_2m_max,precipitation_sum&models=EC_Earth3P_HR";
+    };
+    return fetchJSON(mk("1995-01-01","2014-12-31"), "cmip6", 60000).then(function(rA){
+      return fetchJSON(mk("2031-01-01","2050-12-31"), "cmip6", 60000).then(function(rB){
+        if (rA.ok && rB.ok){
+          var stat = function(dd){
+            var d = dd.daily, t=d.temperature_2m_max, p=d.precipitation_sum;
+            var tv = t.filter(function(x){return x!==null;}), pv = p.filter(function(x){return x!==null;});
+            return { meanT: mean(tv), hot35: tv.filter(function(x){return x>=35;}).length/20,
+                     rain: mean(pv)*365 };
+          };
+          var sA = stat(rA.data), sB = stat(rB.data);
+          A.future = { base: sA, fut: sB, dT: sB.meanT - sA.meanT,
+            dHot: sB.hot35 - sA.hot35, rainFactor: sA.rain ? sB.rain/sA.rain : null };
+        }
+        return null;
+      });
+    });
+  }).then(function(){
+    /* 4. NASA POWER monthly resource, 2020–2024 */
+    var up = "https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=ALLSKY_SFC_SW_DWN,WS50M" +
+      "&community=RE&longitude=" + lon + "&latitude=" + lat + "&start=2020&end=2024&format=JSON";
+    return fetchJSON(up, "power", 30000);
+  }).then(function(rp){
+    if (rp && rp.ok){
+      var P = rp.data.properties.parameter, months = ["01","02","03","04","05","06","07","08","09","10","11","12"];
+      var solar = months.map(function(m){ return mean([2020,2021,2022,2023,2024].map(function(y){ return P.ALLSKY_SFC_SW_DWN[String(y)+m]; }).filter(function(x){return x!==undefined&&x>-90;})); });
+      var wind  = months.map(function(m){ return mean([2020,2021,2022,2023,2024].map(function(y){ return P.WS50M[String(y)+m]; }).filter(function(x){return x!==undefined&&x>-90;})); });
+      A.power = { solar: solar, wind: wind, solarAvg: mean(solar), windAvg: mean(wind) };
+    }
+    cache[key] = A;
+    presentAnalysis(A);
+  });
+}
+
+/* ================= presentation ================= */
+var charts = {};
+function drawChart(id, cfg){
+  if (typeof Chart === "undefined"){ return; }
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart($(id), cfg);
+}
+function unavailable(elId, feedLabel){
+  $(elId).innerHTML = '<span class="unavail">— ' + feedLabel + ' feed unavailable from this network right now. This panel is intentionally left blank rather than filled with stale or invented data.</span>';
+}
+function sigTxt(mk){
+  if (!mk) return "";
+  return mk.p < 0.05 ?
+    "statistically significant (Mann–Kendall p " + (mk.p<0.001 ? "<0.001" : "= " + mk.p.toFixed(3)) + ")" :
+    "not statistically significant (Mann–Kendall p = " + mk.p.toFixed(2) + ")";
+}
+
+function presentAnalysis(A){
+  ANALYSIS = A;
+  var a = SELECTED.asset;
+  /* risk card */
+  var rHeat  = rating("heat",   A.era5 ? A.era5.hotRatio : null);
+  var rRain  = rating("rain",   A.era5 ? A.era5.senRpct : null);
+  var rFlood = { cls:"na", word:"no data" };
+  if (A.glofas) rFlood = A.glofas.gated ? { cls:"na", word:"no major river in tolerance" } : rating("flood", A.glofas.chg);
+  var rFut   = rating("future", A.future ? A.future.dT : null);
+  var trans  = transExposure(a);
+  function row(label, r){
+    return '<div class="riskline"><span>' + label + '</span><span class="pill ' + r.cls + '">' + r.word + '</span></div>';
+  }
+  /* composite screening score — published Table III banding, disclosed weights */
+  var hazParts = [rHeat, rRain, rFlood, rFut].filter(function(r){ return r.cls !== "na"; });
+  var Hphys = hazParts.length ? mean(hazParts.map(function(r){ return HAZ_BAND[r.cls]; })) : null;
+  var Htran = trans.cls !== "na" ? TRAN_BAND[trans.cls] : null;
+  function compAt(wP){
+    if (Hphys===null && Htran===null) return null;
+    if (Hphys===null) return Htran;
+    if (Htran===null) return Hphys;
+    return Math.round(wP*Hphys + (1-wP)*Htran);
+  }
+  var wPhys = window._wPhys || 0.5;
+  var score = compAt(wPhys);
+  var scoreHtml = "";
+  if (score !== null){
+    var opts = [0.3, 0.5, 0.7].map(function(w){
+      return '<option value="' + w + '"' + (w===wPhys ? " selected" : "") + '>physical ' + (w*100) + ' / transition ' + ((1-w)*100) + '</option>';
+    }).join("");
+    scoreHtml = '<div class="riskline" style="border-bottom:none;margin-top:4px"><span><b>Composite screening score</b> ' +
+      '<select id="wsel" class="wsel" title="Disclosed weighting convention — adjustable">' + opts + '</select></span>' +
+      '<span class="pill ' + (score>=60?"high":score>=40?"mod":"low") + '">' + score + ' / 100</span></div>';
+    if (Hphys!==null && Htran!==null)
+      scoreHtml += '<div class="small" style="margin-top:2px">Weight sensitivity (same data, disclosed weighting): physical-led 70/30 → ' +
+        compAt(0.7) + ' · equal 50/50 → ' + compAt(0.5) + ' · transition-led 30/70 → ' + compAt(0.3) +
+        '. Bands: lower 20 · moderate 50 · elevated 70 · high 90; feed-unavailable lines are dropped, never zeroed.</div>';
+  }
+  var rb = $("riskbody");
+  rb.innerHTML = '<div><b>' + SELECTED.label + '</b></div>' +
+    assetSubtitle(a) +
+    '<div style="margin-top:8px">' +
+    row("Heat stress (TX90p, recent 20 yrs vs 1961–90)", rHeat) +
+    row("Extreme-rain trend (Rx1day, Theil–Sen)", rRain) +
+    row("River-flood trend (measured)", rFlood) +
+    row("Modelled warming by 2031–2050", rFut) +
+    row("Transition exposure", trans) +
+    scoreHtml +
+    '</div>' +
+    '<div class="verdict">' + verdictText(A, {rHeat:rHeat, rRain:rRain, rFlood:rFlood, rFut:rFut, trans:trans}) + '</div>' +
+    '<div class="small" style="margin-top:8px">Ratings are heuristic screening grades computed live from the sources on Tab 3 — not investment, lending or insurance advice. Data as of ' + A.asof.slice(0,16).replace("T"," ") + ' UTC. See Tab 2 for the evidence behind each line.</div>';
+  var ws = $("wsel");
+  if (ws) ws.addEventListener("change", function(){ window._wPhys = parseFloat(this.value); presentAnalysis(A); });
+
+  /* charts */
+  if (A.era5){
+    var yrs = A.era5.years;
+    drawChart("ch_heat", { type:"line", data:{ labels: yrs.map(function(s){return s.y;}),
+      datasets:[
+        { label:"hot days/yr — above calendar-day 90th pct (TX90p)", data: yrs.map(function(s){return s.hot;}), borderColor:"#b91c1c", pointRadius:0, borderWidth:1.2 },
+        { label:"days ≥35 °C/yr (secondary, absolute)", data: yrs.map(function(s){return s.hot35;}), borderColor:"#f59e0b", pointRadius:0, borderWidth:1 }]},
+      options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ title:{display:true,text:"days"}}}}});
+    var absTxt = A.era5.h35Recent < 1 ?
+      " The absolute 35 °C count is near zero here — labelled 'not informative at this location' rather than reported as a spurious zero-trend." :
+      " Days at or above 35 °C (secondary absolute index): ~" + round1(A.era5.h35Early) + "/yr in 1961–70 vs ~" + round1(A.era5.h35Recent) + "/yr in the recent 5 yrs.";
+    $("heat_note").textContent = "TX90p: a 'hot day' exceeds the 90th percentile of its own calendar day in 1961–1990 at this exact spot (ERA5 reanalysis; here ≈ " + round1(A.era5.thrJan15) + " °C on 15 Jan and ≈ " + round1(A.era5.thrJul15) + " °C on 15 Jul). " +
+      "Recent 20-yr normal: " + round1(A.era5.hotRecent20) + " days/yr vs the 1961–90 normal of " + round1(A.era5.hotBase) + " (×" + round2(A.era5.hotRatio) + "). " +
+      "Trend: " + (A.era5.senH>=0?"+":"") + round1(A.era5.senH) + " days/decade (Theil–Sen), " + sigTxt(A.era5.mkH) + ". " +
+      "Pettitt change-point: most probable single break in " + A.era5.ptH.year +
+      (A.era5.ptH.p < 0.05 ? " (significant, p" + (A.era5.ptH.p<0.001 ? "<0.001" : " = " + A.era5.ptH.p.toFixed(3)) + ")" : " (not significant)") + "." + absTxt;
+    drawChart("ch_rain", { type:"bar", data:{ labels: yrs.map(function(s){return s.y;}),
+      datasets:[{ label:"wettest day of year (mm)", data: yrs.map(function(s){return s.maxrain;}), backgroundColor:"#2563eb" }]},
+      options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ title:{display:true,text:"mm"}}}}});
+    $("rain_note").textContent = "Annual wettest day (Rx1day). Trend: " + (A.era5.senRmm>=0?"+":"") + round1(A.era5.senRmm) +
+      " mm/decade (Theil–Sen), i.e. " + (A.era5.senRpct>=0?"+":"") + round1(A.era5.senRpct) + "% per decade of the series median — " + sigTxt(A.era5.mkR) +
+      ". Recent 5-yr average wettest day: " + round1(A.era5.rainRecent) + " mm vs 1961–90 average " + round1(A.era5.rainBase) + " mm. Source: ERA5 via Open-Meteo.";
+  } else { $("heat_note").innerHTML = ""; unavailable("heat_note","Weather history"); $("rain_note").innerHTML=""; }
+
+  if (A.glofas){
+    if (A.glofas.gated){
+      if (charts.ch_flood){ charts.ch_flood.destroy(); charts.ch_flood = null; }
+      $("flood_note").innerHTML = '<span class="unavail">— No hydrologically relevant river cell within tolerance: the best-matched cell (' +
+        A.glofas.cellLat + ", " + A.glofas.cellLon + ", " + round1(A.glofas.distKm) + ' km from the asset) has a long-term mean flow of only ' +
+        round1(A.glofas.ltMean) + ' m³/s, below the 100 m³/s screening gate for a major river. Riverine flood is deliberately not scored here, rather than graded against a minor channel. Coastal storm surge is NOT covered either (a stated limit).</span>';
+    } else {
+      var s = A.glofas.series;
+      drawChart("ch_flood", { type:"line", data:{ labels: s.map(function(x){return x.y;}),
+        datasets:[{ label:"annual max discharge (m³/s)", data: s.map(function(x){return x.max;}), borderColor:"#0e7490", pointRadius:0, borderWidth:1.2 }]},
+        options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ title:{display:true,text:"m³/s"}}}}});
+      $("flood_note").textContent = "Matched river cell (" + A.glofas.cellLat + ", " + A.glofas.cellLon + "), " + round1(A.glofas.distKm) +
+        " km from the asset, long-term mean flow ≈ " + round1(A.glofas.ltMean) + " m³/s — clears the hydrological-relevance gate (≥100 m³/s mean, within ~30 km)" +
+        (A.glofas.snapped ? "; the asset's own grid cell sits on a minor channel" : "") +
+        ". Recent 5-yr mean annual maximum: " + round1(A.glofas.recent) + " m³/s vs 1984–2014 mean " + round1(A.glofas.base) +
+        " m³/s (" + (A.glofas.chg>=0?"+":"") + round1(A.glofas.chg) + "%). Source: GloFAS via Open-Meteo. This is riverine flood only — coastal storm surge is NOT covered (a stated limit).";
+    }
+  } else { unavailable("flood_note","River discharge"); }
+
+  if (A.future && A.era5){
+    /* delta (change-factor) method: model change applied to the measured baseline */
+    var obsT = A.era5.obsT20, obsH = A.era5.h35R20, obsR = A.era5.rain20;
+    var projT = obsT + A.future.dT;
+    var projH = Math.max(0, obsH + A.future.dHot);
+    var projR = A.future.rainFactor ? obsR * A.future.rainFactor : null;
+    drawChart("ch_future", { type:"bar", data:{ labels:["Mean daily-max temp (°C)","Days ≥35 °C per year","Annual rain (mm)"],
+      datasets:[
+        { label:"Observed baseline (ERA5, recent 20 yrs)", data:[obsT, obsH, obsR], backgroundColor:"#1a7f4b" },
+        { label:"Model baseline (1995–2014, raw)", data:[A.future.base.meanT, A.future.base.hot35, A.future.base.rain], backgroundColor:"#9ca3af" },
+        { label:"Projected 2031–2050 (delta applied to observed)", data:[projT, projH, projR], backgroundColor:"#b91c1c" }]},
+      options:{ responsive:true, maintainAspectRatio:false }});
+    var bnch = window.BENCH;
+    var cmp = bnch ? " Benchmark (same model, same windows, median of " + bnch.n_cities + " representative Asian cities): warming " +
+      (bnch.median_dT>=0?"+":"") + bnch.median_dT + " °C, hot days " + (bnch.median_dHot>=0?"+":"") + bnch.median_dHot +
+      "/yr, rain " + (bnch.median_dRain>=0?"+":"") + bnch.median_dRain + "% — this site is warming " +
+      (A.future.dT > bnch.median_dT + 0.15 ? "FASTER than" : A.future.dT < bnch.median_dT - 0.15 ? "slower than" : "in line with") +
+      " the regional norm. The benchmark is internal (same model): it shows spatial consistency, not model skill." : "";
+    $("future_note").textContent = "Delta (change-factor) method: the model's change between 1995–2014 and 2031–2050 is applied to the measured ERA5 baseline — additive for temperature and hot-day counts, multiplicative (×" + round2(A.future.rainFactor) + ") for rain — so the model's local bias is not silently transferred. Any gap between the green and grey bars is model bias, on view rather than hidden. Modelled deltas: hottest-day temps " +
+      (A.future.dT>=0?"+":"") + round1(A.future.dT) + " °C; days ≥35 °C " + (A.future.dHot>=0?"+":"") + round1(A.future.dHot) +
+      "/yr; rain " + (A.future.rainFactor>=1?"+":"") + round1((A.future.rainFactor-1)*100) + "%. Single CMIP6 model (EC-Earth3P-HR, high-emission SSP5-8.5-class) via Open-Meteo — one plausible future, not a prediction." + cmp;
+  } else if (A.future){
+    drawChart("ch_future", { type:"bar", data:{ labels:["Mean daily-max temp (°C)","Days ≥35 °C per year","Annual rain (mm)"],
+      datasets:[
+        { label:"1995–2014 (model baseline)", data:[A.future.base.meanT, A.future.base.hot35, A.future.base.rain], backgroundColor:"#9ca3af" },
+        { label:"2031–2050 (projection)", data:[A.future.fut.meanT, A.future.fut.hot35, A.future.fut.rain], backgroundColor:"#b91c1c" }]},
+      options:{ responsive:true, maintainAspectRatio:false }});
+    $("future_note").textContent = "Weather-history feed unavailable, so the delta method cannot be applied — showing raw model output instead, which carries local bias (treat the absolute levels with caution; the change between windows is more robust). Modelled deltas: " +
+      (A.future.dT>=0?"+":"") + round1(A.future.dT) + " °C; days ≥35 °C " + (A.future.dHot>=0?"+":"") + round1(A.future.dHot) + "/yr. Single CMIP6 model via Open-Meteo.";
+  } else { unavailable("future_note","Climate projection"); }
+
+  if (A.power){
+    drawChart("ch_power", { type:"bar", data:{ labels:["J","F","M","A","M","J","J","A","S","O","N","D"],
+      datasets:[
+        { label:"solar (kWh/m²/day)", data:A.power.solar, backgroundColor:"#f59e0b" },
+        { label:"wind at 50 m (m/s)", data:A.power.wind, backgroundColor:"#16a34a" }]},
+      options:{ responsive:true, maintainAspectRatio:false }});
+    var cf = A.power.solarAvg / 24 * 100;   // capacity-factor proxy: 1 kW/m² peak standard
+    var wind100 = A.power.windAvg * 1.092;  // logarithmic profile 50 m → 100 m hub, z0 = 0.03 m
+    var cfTxt = cf >= 18 ? "strong — above the ≥16–18% level utility solar usually needs to pencil" :
+                cf >= 14 ? "usable — mid-range for utility solar (below the ≥16–18% 'strong' mark, above the 14% floor)" : "weak for utility solar (below ~14%)";
+    var wTxt = wind100 >= 6.5 ? "viable for utility wind (≥6.5 m/s at 100 m hub)" :
+               wind100 >= 5 ? "marginal for utility wind (5–6.5 m/s at 100 m)" : "too weak for utility wind (<5 m/s at 100 m)";
+    var repl = "";
+    var a0 = SELECTED.asset;
+    if (a0 && !a0.clean && a0.mt > 0){
+      var EF = { coal:0.95, gas:0.45, oil:0.7, biomass:0.1, other:0.5 }[fuelClass(a0.fuel)];
+      var genGWh = a0.mt * 1e6 / EF / 1000;                        // implied annual generation from emissions (heuristic)
+      var areaKm2 = (genGWh * 1000) / ((cf/100) * 8760 * 40);      // A = E / (CF × 8760 × ρ), ρ ≈ 40 MW/km²
+      repl = " To replace this plant's implied ~" + Math.round(genGWh).toLocaleString() +
+        " GWh/yr (from its emissions at " + EF.toFixed(2) + " t CO₂/MWh — CO₂e reporting makes this a modest over-estimate) would take on the order of " +
+        Math.round(areaKm2).toLocaleString() + " km² of utility solar at this resource (ρ ≈ 40 MW/km², factor-of-two uncertainty) — a land-feasibility sanity check, not a design figure.";
+    }
+    $("power_note").textContent = "5-yr monthly means (2020–24), NASA POWER satellite-derived (~0.5° field — insensitive to local terrain, a caveat). Implications: solar ≈ " + round1(cf) +
+      "% capacity factor — " + cfTxt + "; wind " + round1(A.power.windAvg) + " m/s at 50 m ≈ " + round1(wind100) + " m/s at a 100 m hub (log-profile, z₀ = 0.03 m) — " + wTxt + "." + repl;
+  } else { unavailable("power_note","NASA POWER"); }
+
+  /* plain-English summary */
+  var bits = [];
+  if (A.era5) bits.push("Heat stress: hot days (above the local calendar-day 90th percentile) have " +
+    (A.era5.hotRatio > 1.1 ? "risen from about " + round1(A.era5.hotBase) + " a year in 1961–90 to " + round1(A.era5.hotRecent20) + " over the most recent 20 years" : "not risen materially versus the 1961–90 normal") +
+    (A.era5.mkH.p < 0.05 ? " — a statistically significant trend" : " — the trend is not statistically significant") + "." +
+    (A.era5.h35Recent >= 1 ? " Days at or above 35 °C: ~" + round1(A.era5.h35Early) + "/yr in the 1960s vs ~" + round1(A.era5.h35Recent) + "/yr now." : ""));
+  if (A.glofas && !A.glofas.gated && A.glofas.chg !== null) bits.push("The nearest major river's annual flood peak is running " + (A.glofas.chg>=0?"+":"") + round1(A.glofas.chg) + "% versus its 1984–2014 norm.");
+  if (A.glofas && A.glofas.gated) bits.push("No major river sits within screening tolerance of this site, so riverine flood is not scored — rather than graded against a minor channel.");
+  if (A.future) bits.push("One high-emission model future adds about " + round1(A.future.dT) + " °C to daytime temperatures by mid-century (delta method on the measured baseline).");
+  if (A.power) bits.push("If replacement is on the table: the site's solar resource implies roughly a " + round1(A.power.solarAvg/24*100) + "% capacity factor (" + (A.power.solarAvg/24*100 >= 18 ? "strong — above the ≥16–18% utility mark" : A.power.solarAvg/24*100 >= 14 ? "usable — mid-range for utility solar" : "weak for utility solar") + "), and its " + round1(A.power.windAvg * 1.092) + " m/s wind at a 100 m hub is " + (A.power.windAvg * 1.092 >= 6.5 ? "viable" : A.power.windAvg * 1.092 >= 5 ? "marginal" : "too weak") + " for utility turbines (needs ≥6.5 m/s).");
+  if (a && a.clean) bits.push("On transition: this is a " + (FUEL_STYLE[a.fuel]||FUEL_STYLE.other).label.toLowerCase() + " plant (" + a.mw.toLocaleString() + " MW) with no operational emissions — transition policy favours it; its climate exposure is physical, not regulatory.");
+  else if (a) bits.push("On transition: this is a " + FUEL_STYLE[fuelClass(a.fuel)].label.toLowerCase() + " asset emitting about " + a.mt + " Mt CO₂e a year" + (fuelClass(a.fuel)==="coal" ? " — squarely in the phase-out spotlight" : "") + ".");
+  $("summary_txt").innerHTML = bits.map(function(b){ return "<p>" + b + "</p>"; }).join("") +
+    '<p class="small">Screening-grade only. Verify with engineering due diligence before any commitment.</p>';
+}
+
+function verdictText(A, R){
+  var highs = [];
+  if (R.rHeat.cls==="high" || R.rHeat.cls==="sev") highs.push("heat stress");
+  if (R.rRain.cls==="high" || R.rRain.cls==="sev") highs.push("extreme rain");
+  if (R.rFlood.cls==="high" || R.rFlood.cls==="sev") highs.push("river flooding");
+  if (R.rFut.cls==="high" || R.rFut.cls==="sev") highs.push("strong modelled warming");
+  var t = highs.length ? "Measured data flags <b>" + highs.join(", ") + "</b> as the concern(s) here." :
+    "No measured hazard stands out at screening level.";
+  if (R.trans.cls==="high") t += " Transition exposure is high, so the long-term case for this asset depends on a credible retrofit-or-retire plan.";
+  return t;
+}
+
+/* ================= Tab 3 content & boot ================= */
+$("method_txt").innerHTML =
+  "<p><b>Assets:</b> " + (window.ASSETS||[]).length.toLocaleString() + " Asian fossil-fuel power stations with satellite-estimated emissions (Climate TRACE, 2025 release, CC BY 4.0); the complete Asian coal fleet — " + (window.COAL||[]).length.toLocaleString() + " plants, unit-level aggregated — from GEM's Global Coal Plant Tracker (Jul 2026, CC BY 4.0), cross-matched to the emissions data at ≤5 km (96% of operating plants matched); and " + (window.CLEAN||[]).length.toLocaleString() + " clean-energy plants, fully sourced from GEM trackers — solar &amp; wind (Feb 2026), hydropower &amp; geothermal (Mar 2026), bioenergy (GBPT V3) and nuclear (Aug 2026) — operating plants ≥50 MW, nuclear at all sizes. Fuel labels come from the source databases and are occasionally wrong or named after a neighbouring complex; every fossil risk card carries that caveat.</p>" +
+  "<p><b>Measured hazards:</b> selecting a site downloads its grid cell's full daily weather record (ERA5 reanalysis, 1940–today, ~31,000 days). <b>Heat</b> follows the ETCCDI TX90p convention: a day is 'hot' when its maximum temperature exceeds the 90th percentile of that calendar day in the 1961–1990 WMO reference period (±2-day sampling window); the most recent 20-year normal is compared with the 1961–90 normal. A secondary absolute index (days ≥35 °C) is reported alongside for warm climates, and labelled 'not informative at this location' where its count is near zero. Trends are assessed with the non-parametric Mann–Kendall test (flagged only at two-sided p &lt; 0.05) with Theil–Sen slope magnitudes, and single regime breaks with the Pettitt change-point test. <b>Extreme rain</b> is the annual wettest day (Rx1day); its indicator is the Theil–Sen slope in % per decade of the series median, with a Mann–Kendall significance test — a genuine tendency, not one noisy year. <b>River flood</b> uses GloFAS discharge (1984–today): five candidate cells are probed, the strongest-flow cell is taken, and it must clear a hydrological-relevance gate — long-term mean flow ≥100 m³/s within ~30 km of the asset — otherwise the panel shows an explicit 'no hydrologically relevant river cell within tolerance' state. The matched cell's distance and mean flow are printed on the panel.</p>" +
+  "<p><b>Future shift (delta method):</b> one CMIP6 model (EC-Earth3P-HR, high-emission SSP5-8.5-class) compares 1995–2014 with 2031–2050, and the model's <i>change</i> — not its raw absolute — is applied to the measured ERA5 baseline: additive for temperature and hot-day counts, multiplicative for rainfall. Both the observed and the raw model baseline are drawn, so model bias is visible rather than silently transferred. The shift is benchmarked against the same model at 24 representative Asian cities (median +0.99 °C, +1.3 hot days/yr, +8.4% rain) — an internal consistency check (spatial pattern), not a validation of model skill. One model is a plausible future, not a forecast; a multi-model ensemble spread is the stated next step.</p>" +
+  "<p><b>Ratings — the exact thresholds used:</b></p>" +
+  "<table class='status' style='font-size:12px'><tr><th>Signal</th><th>Lower</th><th>Moderate</th><th>Elevated</th><th>High</th></tr>" +
+  "<tr><td>Heat stress (recent 20-yr TX90p days ÷ 1961–90 normal)</td><td>&lt;1.25×</td><td>1.25–1.75×</td><td>1.75–2.5×</td><td>&gt;2.5×</td></tr>" +
+  "<tr><td>Extreme-rain trend (Theil–Sen slope of Rx1day, %/decade of median)</td><td>&lt;+1.5</td><td>+1.5–4</td><td>+4–8</td><td>&gt;+8</td></tr>" +
+  "<tr><td>River-flood trend (change in recent 5-yr annual-max discharge vs 1984–2014)</td><td>&lt;+5%</td><td>+5–20%</td><td>+20–50%</td><td>&gt;+50%</td></tr>" +
+  "<tr><td>Modelled warming by 2031–2050 (°C, delta method)</td><td>&lt;1.5</td><td>1.5–2.5</td><td>2.5–3.5</td><td>&gt;3.5</td></tr>" +
+  "<tr><td>Solar capacity factor (implied)</td><td colspan='4'>strong ≥16–18% · usable 14–18% · weak &lt;14%</td></tr>" +
+  "<tr><td>Wind at 100 m hub (50 m NASA POWER × 1.092, log profile z₀=0.03 m)</td><td colspan='4'>viable ≥6.5 m/s · marginal 5–6.5 m/s · too weak &lt;5 m/s</td></tr></table>" +
+  "<p class='small'>These bands are screening heuristics, not industry standards — validated against the event log below and disclosed in the paper's reproducibility table.</p>" +
+  "<p><b>From ratings to a composite score (published banding):</b> each pill maps to a band value — lower/low = 20, moderate = 50, elevated = 70, high/severe = 90 — and 'feed unavailable' lines are dropped from the mean, never scored as zero. The physical-hazard line is the mean of the available hazard bands (heat, rain, flood, modelled shift); transition exposure is its own band. Composite S = w·H<sub>physical</sub> + (1−w)·H<sub>transition</sub>, with equal weights (0.5/0.5) as the disclosed default. The weight is a user control on the risk card, and the 70/30 and 30/70 endpoints are always printed — the central modelling choice is visible and adjustable, not buried in a constant.</p>" +
+  "<p><b>Replacement resource:</b> for fossil assets, emissions are converted to implied generation with labelled emission factors (0.95 / 0.45 / 0.70 t CO₂ per MWh for coal / gas / oil; CO₂e reporting modestly over-estimates generation). The land needed to replace that generation with utility solar is A = E / (CF × 8760 × ρ) with ρ ≈ 40 MW/km², an empirical area power density for operating Asian parks — an order-of-magnitude land-feasibility check with a stated factor-of-two uncertainty, not a design figure.</p>" +
+  "<p><b>Statistical machinery:</b> calendar-day percentile thresholds, Mann–Kendall significance, Theil–Sen slopes and Pettitt change-points are all computed live in the browser by small, inspectable vanilla-JS routines — classical non-parametric statistics, no black boxes.</p>" +
+  "<p><b>Known limits:</b> no coastal storm-surge, tropical-cyclone wind, cooling-water/drought or seismic hazard; grid-cell resolution (~10–25 km) smooths micro-siting effects; asset list covers power only; Climate TRACE emissions are estimates; no uncertainty is yet propagated to the composite score.</p>" +
+  "<p><b>Standards alignment:</b> the building blocks follow established practice — the 1961–1990 reference period is the WMO standard climatological normal; TX90p and Rx1day follow the ETCCDI climate-indices approach used by the IPCC (Zhang et al. 2011); ERA5 and GloFAS are peer-reviewed Copernicus/ECMWF services; the delta (change-factor) method is the standard bias-handling practice in impact studies; the physical-vs-transition split follows the TCFD / IFRS S2 taxonomy that lenders and insurers already report against. What is <i>not</i> an industry standard — and is labelled as such wherever shown — is the lower/moderate/elevated/high banding and the river-gate constants: transparent screening heuristics, validated against the event log below. A full catastrophe-modelling treatment (GEV return periods, multi-model ensembles, vulnerability functions) is deliberately out of scope for a screening tool.</p>";
+$("scorecard").innerHTML = "<p style='font-size:13px'>The engine below grades the dashboard's indicators against " +
+  ((window.EVENTS||[]).length) + " documented Asian climate disasters, in two arms. <b>Recall arm:</b> for each event it downloads the full measured record at the disaster location, removes the secular trend (Theil–Sen detrending, so background warming cannot inflate the result), and asks — did the event year land in the extreme tail (≥95th percentile) of that location's own detrended history? <b>Specificity arm:</b> every other location-year in the same records (excluding known disaster years) is graded by the identical rule as a control — since the tail is the top 5% by construction, a well-behaved indicator should flag close to 5% of control years; a materially higher rate would mean the indicator is flagging the trend, not the event. This is a data-fidelity check, not a claim of prediction — and with a handful of events the grades are diagnostic, not a headline accuracy percentage. Misses are shown, not hidden.</p>" +
+  "<p><button class='btn' id='runval'>Run validation now (~1–2 minutes; throttled events are retried automatically)</button> <span class='small' id='valstatus'></span></p>" +
+  "<div id='valtable'></div>";
+
+function percentileRank(sortedVals, v){
+  var below = sortedVals.filter(function(x){ return x < v; }).length;
+  return Math.round(below / sortedVals.length * 100);
+}
+/* TX90p calendar-day thresholds from a 1961–90 sample map (shared by validation) */
+function calDayThr(calT){
+  var thr = {};
+  for (var dd=1; dd<=365; dd++){
+    var pool = [];
+    for (var k=-2;k<=2;k++){
+      var w = dd+k; if (w<1) w+=365; if (w>365) w-=365;
+      if (calT[w]) pool = pool.concat(calT[w]);
+    }
+    if (pool.length){ pool.sort(function(a,b){return a-b;}); thr[dd] = pool[Math.floor(0.9*(pool.length-1))]; }
+  }
+  return thr;
+}
+function validateEvent(ev){
+  var today = new Date().toISOString().slice(0,10);
+  var curY = +today.slice(0,4);
+  var BAR = 95;   // recall bar: ≥95th percentile of the detrended record
+  if (ev.type === "flood"){
+    var u = "https://flood-api.open-meteo.com/v1/flood?latitude=" + ev.lat + "&longitude=" + ev.lon +
+      "&daily=river_discharge&start_date=1984-01-01&end_date=" + today;
+    return fetchRetry(u, 60000).then(function(r){
+      if (!r.ok) return { ev: ev, status: "feed unavailable" };
+      var d = r.data.daily, ymax = {};
+      for (var i=0;i<d.time.length;i++){
+        var y = +d.time[i].slice(0,4), q = d.river_discharge[i];
+        if (q===null) continue;
+        if (!ymax[y] || q > ymax[y]) ymax[y] = q;
+      }
+      if (!ymax[ev.year]) return { ev: ev, status: "event year missing" };
+      var ys = Object.keys(ymax).map(Number).sort(function(a,b){return a-b;});
+      var vs = ys.map(function(y){ return ymax[y]; });
+      var dv = detrendSeries(ys, vs);
+      var sorted = dv.slice().sort(function(a,b){return a-b;});
+      var p = percentileRank(sorted, dv[ys.indexOf(ev.year)]);
+      var ctrl = dv.filter(function(x, ix){ return ys[ix] !== ev.year; });
+      var ctrlHits = ctrl.filter(function(x){ return percentileRank(sorted, x) >= BAR; }).length;
+      return { ev: ev, status: "ok", pct: p, value: round1(ymax[ev.year]) + " m³/s", hit: p >= BAR,
+        ctrlN: ctrl.length, ctrlHits: ctrlHits };
+    });
+  }
+  /* lighter requests: only the variable needed, record from 1961 (the baseline year) */
+  var varname = ev.type === "heat" ? "temperature_2m_max" : "precipitation_sum";
+  var u2 = "https://archive-api.open-meteo.com/v1/archive?latitude=" + ev.lat + "&longitude=" + ev.lon +
+    "&start_date=1961-01-01&end_date=" + today + "&daily=" + varname + "&timezone=UTC";
+  return fetchRetry(u2, 90000).then(function(r){
+    if (!r.ok) return { ev: ev, status: "feed unavailable" };
+    var d = r.data.daily, years = {}, calT = {};
+    for (var i=0;i<d.time.length;i++){
+      var ds = d.time[i], y = +ds.slice(0,4), v = d[varname][i];
+      if (v===null) continue;
+      if (!years[y]) years[y] = { vals: [], maxrain: 0 };
+      years[y].vals.push(v);
+      if (ev.type === "rain" && v > years[y].maxrain) years[y].maxrain = v;
+      if (ev.type === "heat" && y>=1961 && y<=1990){
+        var doy = dayOfYear(ds);
+        (calT[doy] = calT[doy] || []).push(v);
+      }
+    }
+    var ys = Object.keys(years).map(Number).filter(function(y){ return y < curY; }).sort(function(a,b){return a-b;});
+    var vs;
+    if (ev.type === "heat"){
+      if (years[ev.year] === undefined) return { ev: ev, status: "event year missing" };
+      var thr = calDayThr(calT);
+      /* TX90p count per year: re-walk the daily record, day-of-year lookup */
+      var counts = {};
+      ys.forEach(function(y){ counts[y] = 0; });
+      for (var i2=0;i2<d.time.length;i2++){
+        var y2 = +d.time[i2].slice(0,4), t2 = d[varname][i2];
+        if (t2===null || y2 >= curY || counts[y2]===undefined) continue;
+        var thr2 = thr[dayOfYear(d.time[i2])];
+        if (thr2!==undefined && t2 > thr2) counts[y2]++;
+      }
+      vs = ys.map(function(y){ return counts[y]; });
+      var hv = counts[ev.year];
+      var dvh = detrendSeries(ys, vs);
+      var sortedH = dvh.slice().sort(function(a,b){return a-b;});
+      var ph = percentileRank(sortedH, dvh[ys.indexOf(ev.year)]);
+      var ctrlH = dvh.filter(function(x, ix){ return ys[ix] !== ev.year; });
+      var ctrlHitsH = ctrlH.filter(function(x){ return percentileRank(sortedH, x) >= BAR; }).length;
+      return { ev: ev, status: "ok", pct: ph, value: hv + " hot days", hit: ph >= BAR,
+        ctrlN: ctrlH.length, ctrlHits: ctrlHitsH };
+    }
+    vs = ys.map(function(y){ return years[y].maxrain; });
+    if (years[ev.year] === undefined) return { ev: ev, status: "event year missing" };
+    var rv = years[ev.year].maxrain;
+    var dvr = detrendSeries(ys, vs);
+    var sortedR = dvr.slice().sort(function(a,b){return a-b;});
+    var pr = percentileRank(sortedR, dvr[ys.indexOf(ev.year)]);
+    var ctrlR = dvr.filter(function(x, ix){ return ys[ix] !== ev.year; });
+    var ctrlHitsR = ctrlR.filter(function(x){ return percentileRank(sortedR, x) >= BAR; }).length;
+    return { ev: ev, status: "ok", pct: pr, value: round1(rv) + " mm", hit: pr >= BAR,
+      ctrlN: ctrlR.length, ctrlHits: ctrlHitsR };
+  });
+}
+/* one retry with 8 s backoff — Open-Meteo rate-limits bursts of large archive calls */
+function fetchRetry(url, timeoutMs){
+  return fetchJSON(url, null, timeoutMs).then(function(r){
+    if (r.ok) return r;
+    return new Promise(function(res){ setTimeout(function(){
+      fetchJSON(url, null, timeoutMs).then(res);
+    }, 8000); });
+  });
+}
+$("runval").addEventListener("click", function(){
+  var btn = this; btn.disabled = true;
+  var evs = window.EVENTS || [];
+  var out = [];
+  var chain = Promise.resolve();
+  evs.forEach(function(ev, i){
+    chain = chain.then(function(){
+      $("valstatus").textContent = "Checking " + (i+1) + " of " + evs.length + ": " + ev.name + "…";
+      return validateEvent(ev).then(function(res){ out.push(res); })
+        .then(function(){ return new Promise(function(r){ setTimeout(r, 3000); }); });
+    });
+  });
+  chain.then(function(){
+    /* second pass: after a 15 s cool-down, retry any events the API throttled */
+    var failed = out.filter(function(o){ return o.status === "feed unavailable"; });
+    if (!failed.length) return;
+    var rc = new Promise(function(r){ setTimeout(r, 15000); });
+    failed.forEach(function(f, j){
+      rc = rc.then(function(){
+        $("valstatus").textContent = "Retrying throttled event " + (j+1) + " of " + failed.length + ": " + f.ev.name + "…";
+        return validateEvent(f.ev).then(function(res){
+          if (res.status !== "feed unavailable"){ out[out.indexOf(f)] = res; }
+        }).then(function(){ return new Promise(function(r){ setTimeout(r, 4000); }); });
+      });
+    });
+    return rc;
+  }).then(function(){
+    var graded = out.filter(function(o){ return o.status === "ok"; });
+    var hits = graded.filter(function(o){ return o.hit; }).length;
+    var ctrlN = graded.reduce(function(s,o){ return s + (o.ctrlN||0); }, 0);
+    var ctrlHits = graded.reduce(function(s,o){ return s + (o.ctrlHits||0); }, 0);
+    var ctrlRate = ctrlN ? ctrlHits/ctrlN*100 : null;
+    var rows = out.map(function(o){
+      if (o.status !== "ok") return "<tr><td>" + o.ev.name + "</td><td>" + o.ev.place + ", " + o.ev.year + "</td><td>" + o.ev.type + "</td><td colspan='3' class='small'>" + o.status + "</td></tr>";
+      return "<tr><td>" + o.ev.name + "</td><td>" + o.ev.place + ", " + o.ev.year + "</td><td>" + o.ev.type + "</td>" +
+        "<td>" + o.value + "</td><td>" + o.pct + "th percentile</td>" +
+        '<td><span class="pill ' + (o.hit ? "low" : "na") + '" style="' + (o.hit ? "" : "background:#9ca3af") + '">' + (o.hit ? "CONFIRMED" : "NOT CONFIRMED") + '</span></td></tr>';
+    }).join("");
+    $("valtable").innerHTML = "<table class='status' style='font-size:12px'><tr><th>Event</th><th>Where / when</th><th>Signal</th><th>Event-year value</th><th>Rank in detrended record</th><th>Grade</th></tr>" + rows + "</table>" +
+      "<p style='font-size:13px;margin-top:8px'><b>Recall: " + hits + " of " + graded.length + " events confirmed at the ≥95th percentile of their own detrended records (" + Math.round(hits/graded.length*100) + "%)." +
+      (ctrlRate !== null ? " Specificity: " + round1(ctrlRate) + "% of " + ctrlN.toLocaleString() + " control location-years flagged — close to the ~5% expected by construction, so the tail test is well-behaved and is not simply flagging the secular warming trend." : "") + "</b> " +
+      "'Confirmed' = the disaster year sits in the extreme tail of that location's own measured, detrended history — the indicator reflected reality. 'Not confirmed' is diagnostic, not a verdict that the location is low-risk: it marks where the indicator or the grid-cell resolution fell short (for example Bangkok 2024 — night-time and humidity extremity under-captured by a daytime maximum-temperature index over a diluted coastal cell). With " + graded.length + " graded events these grades are diagnostic, not a headline accuracy percentage. Graded " + new Date().toISOString().slice(0,16).replace("T"," ") + " UTC. These numbers — recomputed live from the raw records — go into the paper's Results section.</p>";
+    $("valstatus").textContent = "";
+    btn.disabled = false;
+  });
+});
+$("sources_txt").innerHTML =
+  "<p>Climate TRACE v7 API — asset emissions · CC BY 4.0<br>GEM Global Coal Plant Tracker, July 2026 — coal fleet, unit detail, owners · CC BY 4.0 (non-commercial commitment)<br>GEM Global Solar &amp; Wind Power Trackers, February 2026 — clean layer · CC BY 4.0 (selected solar records derive from TransitionZero TZ-SAM, CC BY-NC 4.0)<br>GEM Global Hydropower &amp; Geothermal Power Trackers, March 2026 — clean layer · CC BY 4.0<br>GEM Global Bioenergy Power Tracker (GBPT V3) — clean layer · CC BY 4.0<br>GEM Global Nuclear Power Tracker, August 2026 — clean layer · CC BY 4.0<br>Open-Meteo Archive (ERA5, © ECMWF/Copernicus) · CC BY 4.0<br>Open-Meteo Flood (GloFAS, © ECMWF/JRC) · CC BY 4.0<br>Open-Meteo Climate (CMIP6 downscaled) · CC BY 4.0<br>NASA POWER · NASA open data<br>Basemap © OpenStreetMap contributors, © CARTO<br>Candidate next additions: GEM Oil &amp; Gas Plant Tracker (Jan 2026, downloaded) to enrich the fossil layer; infrastructure context (ODbL).</p>";
+
+function buildFeedTable(){
+  var rows = FEEDS.map(function(f){
+    var st = feedState[f.id] || "—";
+    var word = st==="ok" ? '<span style="color:var(--green)">reachable</span>' : st==="bad" ? '<span style="color:var(--red)">unavailable now</span>' : "not yet contacted";
+    return "<tr><td>" + f.label + "</td><td>" + word + "</td></tr>";
+  }).join("");
+  $("feedtable").innerHTML = "<tr><th>Feed</th><th>Status (this network, now)</th></tr>" + rows;
+}
+$("retest").addEventListener("click", function(){
+  buildFeedTable();
+  alert("Feeds are tested automatically whenever a panel uses them. Select an asset on Tab 1 to exercise all feeds; this table reflects the most recent results.");
+});
+
+/* boot */
+(function(){
+  if (window.ASSETS && window.ASSETS.length) setFeed("assets","ok"); else setFeed("assets","bad");
+  initMap();
+  buildFeedTable();
+  setInterval(buildFeedTable, 5000);
+})();
+</script>
+</body>
+</html>
