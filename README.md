@@ -4,7 +4,7 @@
 
 - **Live demo:** https://asia-climate-risk-screener.netlify.app — live and verified on desktop and mobile
 - **Preprint:** [engrXiv DOI — to be added when live]
-- **Permanent archive:** [Zenodo DOI — to be added when live]
+- **Permanent archive:** https://doi.org/10.5281/zenodo.22058897
 
 ## What this is
 
@@ -48,3 +48,7 @@ Climate TRACE (CC BY 4.0) · Global Energy Monitor trackers (CC BY 4.0; selected
 ## Disclosure of AI assistance
 
 Built with AI assistance (Kimi AI, Moonshot AI) under continuous human direction. All engineering decisions, data-validation steps and final content were reviewed, tested and approved by the human author.
+
+## Citation
+
+[Citation block — to be added when the engrXiv DOI is live]
