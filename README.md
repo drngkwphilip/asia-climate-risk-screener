@@ -14,13 +14,13 @@ A single self-contained web page (zero backend, no account, no API key) that map
 - **2,265 Asian coal plants** — the complete fleet, unit-level aggregated, with ages, planned retirements and owners (GEM Global Coal Plant Tracker, Jul 2026, CC BY 4.0); 96% of operating plants cross-matched to Climate TRACE at ≤5 km
 - **10,116 clean-energy plants** — solar & wind (GEM, Feb 2026), hydro & geothermal (GEM, Mar 2026), bioenergy (GBPT V3) and nuclear (GEM, Aug 2026); operating, ≥50 MW (nuclear: all sizes), all CC BY 4.0
 
-Click any dot and the page builds a plain-language risk profile from five live public feeds: six decades of measured weather (ERA5 via Open-Meteo), river-discharge records since 1984 (GloFAS), climate-model projections to 2050 (CMIP6), and satellite-derived solar/wind resource (NASA POWER) — plus the emissions and census data above.
+Click any dot and the page builds a plain-language risk profile from four live public feeds — six decades of measured weather (ERA5 via Open-Meteo), river-discharge records since 1984 (GloFAS), climate-model projections to 2050 (CMIP6), and satellite-derived solar/wind resource (NASA POWER), all fetched live in the browser — plus the bundled emissions and census data above.
 
 ## Does it work? (measured, not asserted)
 
-A built-in validation harness grades the pipeline against **8 documented Asian climate disasters** (Zhengzhou 2021, Pakistan super-flood 2022, Jacobabad 2022, Chongqing 2022, Bangkok 2024, Delhi 2024, Chennai 2023, Kumamoto 2020): did the disaster year rank in the extreme tail (≥80th percentile) of that location's own measured record?
+A built-in evaluation harness (labelled "validation" in the interface) grades the hazard-data pipeline against **8 documented Asian climate disasters** (Zhengzhou 2021, Pakistan super-flood 2022, Jacobabad 2022, Chongqing 2022, Bangkok 2024, Delhi 2024, Chennai 2023, Kumamoto 2020) under a two-arm protocol: each series is detrended (Theil–Sen), and the event year must rank ≥95th percentile of the location's own record (recall); every other location-year in the same records is graded as a control (specificity).
 
-**Result: 7 of 8 CONFIRMED (87.5%).** The eighth (Bangkok 2024, 73rd percentile) is displayed openly, not hidden — a diagnostic about grid-cell resolution, not a verdict of low risk. Recompute it yourself: open the site → Tab 3 → "Run validation now".
+**Full live run, graded 2026-08-21: recall 4 of 8** — all four rainfall/flood events CONFIRMED (Zhengzhou 95th, Sindh 97th, Chennai 98th, Kumamoto 97th); the four heat events rank 57th–94th after detrending and are shown openly with their diagnostics. **Specificity: 3.8% of 477 control location-years flagged**, consistent with the ~5% expected by construction. Note the heat "misses" are a property of the strict detrended single-year test — the tool's shipped distributional heat indicator flags all four heat sites as elevated. Recompute it yourself: open the site → Tab 3 → "Run validation now".
 
 ## Honest by design
 
@@ -48,7 +48,3 @@ Climate TRACE (CC BY 4.0) · Global Energy Monitor trackers (CC BY 4.0; selected
 ## Disclosure of AI assistance
 
 Built with AI assistance (Kimi AI, Moonshot AI) under continuous human direction. All engineering decisions, data-validation steps and final content were reviewed, tested and approved by the human author.
-
-## Citation
-
-[Citation block — to be added when the engrXiv DOI is live]
