@@ -3,7 +3,7 @@
 **Free, open, one-click climate-risk screening for more than 15,000 power stations across Asia — physical risk, transition risk, and replacement resource, computed live in your browser.**
 
 - **Live demo:** https://asia-climate-risk-screener.netlify.app — live and verified on desktop and mobile
-- **Preprint:** [engrXiv DOI — to be added when live]
+- **Preprint:** https://doi.org/10.31224/8047 (engrXiv, posted 24 Aug 2026)
 - **Permanent archive:** https://doi.org/10.5281/zenodo.22058897
 
 ## What this is
@@ -51,4 +51,4 @@ Built with AI assistance (Kimi AI, Moonshot AI) under continuous human direction
 
 ## Citation
 
-[Citation block — to be added when the engrXiv DOI is live]
+Ng, K. W. P. (2026). *Asia Climate Risk Screener: A Zero-Backend Browser Tool for Asset-Level Physical and Transition Climate-Risk Screening.* engrXiv preprint, posted 24 Aug 2026. https://doi.org/10.31224/8047
